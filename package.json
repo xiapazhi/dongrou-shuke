@@ -1,0 +1,18 @@
+{
+  "name": "dongrou-shuke",
+  "version": "1.0.0",
+  "description": "zj东软会计继续教育",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/yuan_yi/dongrou-shuke.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^21.5.2"
+  }
+}
