@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+// const puppeteer = require('puppeteer-extra')
 
 const waitamount = async (time = 1000) => {
     await new Promise(resolve => setTimeout(() => resolve(), time));
@@ -9,7 +10,7 @@ const waitamount = async (time = 1000) => {
     const STUDY_TG = 'STUDY';
     const ANSWER_TG = 'ANSWER';
 
-    const TARGET = ANSWER_TG
+    const TARGET = STUDY_TG
 
     const domain = 'http://training.zjkj.edufe.cn';
 
@@ -19,9 +20,9 @@ const waitamount = async (time = 1000) => {
             width: 1280,
             height: 720,
         },
-        slowMo: 50, // slow down by 250ms
-        // devtools: true,
-        args: [`--window-size=1280,920`]
+        slowMo: 30, // slow down by 250ms
+        devtools: true,
+        args: [`--window-size=1280,820`]
     });
     browser.on('close', () => {
         // 在这里可以执行其他操作，例如保存日志或清理资源。  
@@ -60,7 +61,7 @@ const waitamount = async (time = 1000) => {
             }
         }
 
-        await waitamount()
+        await waitamount(100)
         const loginBut = await page.$x('.//button[@type="submit"]');
         await loginBut[0].click();
 
@@ -68,12 +69,14 @@ const waitamount = async (time = 1000) => {
             // 获取答案
             const cookies = await page.cookies();
             console.log(cookies);
+
+            // 没有必要
             await browser.close();
         } else {
             const yearPlanListRes = await page.waitForResponse(
                 // domain + '/JXJY/zjkj/studentPlan/initPlan'
                 async response => {
-                    console.log(`GET RESPONSE: ${response.url()}`);
+                    // console.log(`GET RESPONSE: ${response.url()}`);
                     if (response.url() !== domain + '/JXJY/zjkj/studentPlan/initPlan') {
                         return false
                     }
@@ -106,6 +109,7 @@ const waitamount = async (time = 1000) => {
 
                 const yearPlanList = (await yearPlanListRes.json()).data?.list || [];
 
+                let breakTemp = false
                 for (let yearPlan of yearPlanList) {
                     console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
                     if (yearPlan.planState == 2) {
@@ -115,31 +119,52 @@ const waitamount = async (time = 1000) => {
                         // 进行中
                         const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId
                         console.log(`年度课程跳转 ${yearPlan.execYear} ${goYearStudyUrl}`);
-                        await page.goto(goYearStudyUrl);
+                        // await page.goto(goYearStudyUrl);
 
-                        const studyPlanListRes = await page.waitForResponse(
-                            async response => {
-                                if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
-                                return await response.text();
-                            }
-                        );
+                        // const studyPlanListRes = await page.waitForResponse(
+                        //     async response => {
+                        //         console.log(`年度课程 GET RESPONSE: ${response.url()}`);
+                        //         if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
+                        //         return await response.text();
+                        //     }
+                        // );
 
-                        await waitamount()
+                        let [studyPlanListRes] = await Promise.all([
+
+                            page.waitForResponse(
+                                async response => {
+                                    console.log(`年度课程 GET RESPONSE: ${response.url()}`);
+                                    if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
+                                    return await response.text();
+                                }
+                            ),
+                            page.goto(goYearStudyUrl)
+                        ])
+                        console.log(studyPlanListRes);
+
+
+                        // await waitamount()
                         if (studyPlanListRes?.ok()) {
                             const studyPlanList = (await studyPlanListRes.json()).data || [];
                             for (let studyPlan of studyPlanList?.courseList || []) {
-                                console.log(`遍历课程 ${studyPlan.courseName} 状态 ${d?.studyState}`);
+                                console.log(`遍历课程 ${studyPlan.courseName} 状态 ${studyPlan?.studyState}`);
                                 if (studyPlan?.studyState == 2) {
                                     // 已完成
                                 } else if (studyPlan?.studyState == 1 || studyPlan?.studyState == 0) {
                                     // 进行中 || 未开始
-                                    const classUrl = domain + '/course/video/' + p.planId + '/' + studyPlanList.studentPlanId + '/' + studyPlan.courseId
+                                    const classUrl = domain + '/course/video/' + studyPlan.planId + '/' + studyPlanList.studentPlanId + '/' + studyPlan.courseId
                                     console.log(`课程学习跳转 ${studyPlan.courseName}`);
 
-                                    await page.goto(goYearStudyUrl);
+                                    await page.goto(classUrl);
+
+                                    breakTemp = true
                                 }
+
+                                if (breakTemp) break
                             }
-                            throw 'xxx'
+
+
+                            // throw 'xxx'
                         }
 
 
@@ -147,6 +172,8 @@ const waitamount = async (time = 1000) => {
                         await waitamount()
                         // 未开始
                     }
+
+                    if (breakTemp) break
                 }
             }
 
