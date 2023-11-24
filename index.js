@@ -21,8 +21,8 @@ const waitamount = async (time = 1000) => {
             height: 720,
         },
         slowMo: 30, // slow down by 250ms
-        devtools: true,
-        args: [`--window-size=1280,820`]
+        // devtools: true,
+        args: [`--window-size=1280,880`]
     });
     browser.on('close', () => {
         // 在这里可以执行其他操作，例如保存日志或清理资源。  
@@ -63,17 +63,22 @@ const waitamount = async (time = 1000) => {
 
         await waitamount(100)
         const loginBut = await page.$x('.//button[@type="submit"]');
-        await loginBut[0].click();
+        // await loginBut[0].click();
 
-        if (TARGET === ANSWER_TG) {
-            // 获取答案
-            const cookies = await page.cookies();
-            console.log(cookies);
+        /** waitForResponse */
+        // const yearPlanListRes = await page.waitForResponse(
+        //     // domain + '/JXJY/zjkj/studentPlan/initPlan'
+        //     async response => {
+        //         // console.log(`GET RESPONSE: ${response.url()}`);
+        //         if (response.url() !== domain + '/JXJY/zjkj/studentPlan/initPlan') {
+        //             return false
+        //         }
+        //         return await response.text();
+        //     }
+        // );
 
-            // 没有必要
-            await browser.close();
-        } else {
-            const yearPlanListRes = await page.waitForResponse(
+        const [yearPlanListRes] = await Promise.all([
+            page.waitForResponse(
                 // domain + '/JXJY/zjkj/studentPlan/initPlan'
                 async response => {
                     // console.log(`GET RESPONSE: ${response.url()}`);
@@ -82,107 +87,262 @@ const waitamount = async (time = 1000) => {
                     }
                     return await response.text();
                 }
-            );
+            ),
+            loginBut[0].click()
+        ])
 
-            // const finalRequest = await page.waitForRequest(
-            //     request => {
-            //         console.log(`GET REQUEST: ${request.url()}`);
-            //         if (request.url() !== domain + '/JXJY/zjkj/studentPlan/initPlan') {
-            //             return false
-            //         }
-            //         // console.log(request.response());
-            //         return true
-            //     }
-            // );
+        /** waitForRequest */
+        // const finalRequest = await page.waitForRequest(
+        //     request => {
+        //         console.log(`GET REQUEST: ${request.url()}`);
+        //         if (request.url() !== domain + '/JXJY/zjkj/studentPlan/initPlan') {
+        //             return false
+        //         }
+        //         // console.log(request.response());
+        //         return true
+        //     }
+        // );
 
-            // 关闭弹窗
-            const introSkipBtn = await page.waitForSelector('.introjs-skipbutton')
-            await introSkipBtn.click();
+        // 关闭弹窗
+        const introSkipBtn = await page.waitForSelector('.introjs-skipbutton')
+        await introSkipBtn.click();
 
-            if (yearPlanListRes?.ok()) {
-                // // 取这个 planName 元素 保险一下
-                // await page.waitForSelector('.planName')
-                // // 找到所有年度列表
-                // let yearListXpath = '//div[contains(@class,"PlanList_playlist_37J8ASEe")]';
-                // let yearList = await page.$x(yearListXpath);
-                // let yearListLen = yearList.length;
+        if (yearPlanListRes?.ok()) {
+            // // 取这个 planName 元素 保险一下
+            // await page.waitForSelector('.planName')
+            // // 找到所有年度列表
+            // let yearListXpath = '//div[contains(@class,"PlanList_playlist_37J8ASEe")]';
+            // let yearList = await page.$x(yearListXpath);
+            // let yearListLen = yearList.length;
 
-                const yearPlanList = (await yearPlanListRes.json()).data?.list || [];
+            const yearPlanList = (await yearPlanListRes.json()).data?.list || [];
 
-                let breakTemp = false
-                for (let yearPlan of yearPlanList) {
-                    console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
-                    if (yearPlan.planState == 2) {
-                        // 已完成
-                    } else if (yearPlan.planState == 0) {
-                        await waitamount()
-                        // 进行中
-                        const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId
-                        console.log(`年度课程跳转 ${yearPlan.execYear} ${goYearStudyUrl}`);
-                        // await page.goto(goYearStudyUrl);
+            let breakTemp = false
+            for (let yearPlan of yearPlanList) {
+                console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
+                if (yearPlan.planState == 2) {
+                    // 已完成
+                } else if (yearPlan.planState == 0) {
+                    await waitamount()
+                    // 进行中
+                    const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId
+                    console.log(`年度课程跳转 ${yearPlan.execYear} ${goYearStudyUrl}`);
 
-                        // const studyPlanListRes = await page.waitForResponse(
-                        //     async response => {
-                        //         console.log(`年度课程 GET RESPONSE: ${response.url()}`);
-                        //         if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
-                        //         return await response.text();
-                        //     }
-                        // );
+                    // await page.goto(goYearStudyUrl);
+                    // const studyPlanListRes = await page.waitForResponse(
+                    //     async response => {
+                    //         console.log(`年度课程 GET RESPONSE: ${response.url()}`);
+                    //         if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
+                    //         return await response.text();
+                    //     }
+                    // );
 
-                        let [studyPlanListRes] = await Promise.all([
+                    let [studyPlanListRes] = await Promise.all([
+                        page.waitForResponse(
+                            async response => {
+                                // console.log(`年度课程 GET RESPONSE: ${response.url()}`);
+                                if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
+                                return await response.text();
+                            }
+                        ),
+                        page.goto(goYearStudyUrl),
+                    ])
+                    console.log(studyPlanListRes);
 
-                            page.waitForResponse(
-                                async response => {
-                                    console.log(`年度课程 GET RESPONSE: ${response.url()}`);
-                                    if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
-                                    return await response.text();
+                    // await waitamount()
+                    if (studyPlanListRes?.ok()) {
+                        const studyPlanList = (await studyPlanListRes.json()).data || [];
+                        for (let studyPlan of studyPlanList?.courseList || []) {
+                            console.log(`检查课程 ${studyPlan.courseName} 状态 ${studyPlan?.studyState}`);
+                            if (studyPlan?.studyState == 2) {
+                                // 已完成
+                            } else if (studyPlan?.studyState == 1 || studyPlan?.studyState == 0) {
+                                // 进行中 || 未开始
+                                const classUrl = domain + '/course/video/' + yearPlan.planId + '/' + studyPlanList.studentPlanId + '/' + studyPlan.courseId + '/0'
+                                console.log(`课程学习跳转 ${studyPlan.courseName}`);
+
+                                // await page.goto(classUrl);
+                                const [
+                                    listenOnin,
+                                    course,
+                                    exercises
+                                ] = await Promise.all([
+                                    page.waitForResponse(
+                                        // 获取当前听课信息
+                                        async response => {
+                                            if (
+                                                response.url().includes('getListenData')
+                                            ) {
+                                                return await response.text();
+                                            } else {
+                                                return false
+                                            }
+                                        }
+                                    ),
+                                    page.waitForResponse(
+                                        // 获取课程小节列表
+                                        async response => {
+                                            if (
+                                                response.url().includes('getCourseInfo')
+                                            ) {
+                                                return await response.text();
+                                            } else {
+                                                return false
+                                            }
+                                        }
+                                    ),
+                                    page.waitForResponse(
+                                        // 获取练习题目和答案
+                                        async response => {
+                                            if (
+                                                response.url().includes('getCasualExercises')
+                                            ) {
+                                                return await response.text();
+                                            } else {
+                                                return false
+                                            }
+                                        }
+                                    ),
+                                    page.goto(classUrl),
+                                ])
+
+                                const listenOninInfo = (await listenOnin.json()) || {};
+                                const courseInfo = (await course.json()) || {};
+                                const exercisesInfo = (await exercises.json()) || {};
+
+                                console.log(`开始学习课程 ${studyPlan.courseName}`);
+
+                                // const videoCover = await page.waitForSelector('.pv-icon-btn-play')
+
+                                // if (videoCover) {
+                                //     await videoCover.click()
+                                // }
+
+                                await waitamount()
+
+                                console.log(`播放 加速 * 2`);
+                                await page.evaluate(() => {
+                                    const videoCover = document.querySelector('.pv-cover')
+                                    console.log(videoCover.style.display);
+                                    if (videoCover && videoCover.style.display == 'block') {
+                                        const videoPlayBut = document.querySelector('.pv-icon-btn-play')
+                                        videoPlayBut.click()
+                                    }
+                                    document.querySelector('.pv-video').playbackRate = 2;
+                                })
+
+                                const videoProcess = await page.waitForSelector('.pv-progress-current-bg')
+                                const checkProgress = async () => {
+                                    const process = await videoProcess.handle.evaluate(element => {
+                                        return element.style.width
+                                    })
+                                    console.log(`进度 ${process}`);
+                                    const processNumber = Number(process.replace('%', ''))
+                                    if (processNumber < 100) {
+                                        await waitamount()
+                                        await checkProgress()
+                                    } else {
+                                        console.log(`学习完成 ${studyPlan.courseName}`);
+                                    }
                                 }
-                            ),
-                            page.goto(goYearStudyUrl)
-                        ])
-                        console.log(studyPlanListRes);
+                                await checkProgress()
+
+                                console.log(`学习完成 ${studyPlan.courseName}`);
+
+                                await waitamount()
+                                console.log(`随堂练习`);
+
+                                for (let exerciseType of exercisesInfo?.data?.questionTypes || []) {
+                                    console.log(`开始练习 ${exerciseType.typeName}`);
+                                    for (let question of exerciseType.questions || []) {
+                                        console.log(`${question.examinationContent}`);
+
+                                        if (question?.answers?.length) {
+
+                                            // 等待待选答案切换完成
+                                            await page.waitForXPath(`//li[contains(@class,"AsideExercise_RadioItem_")]/div[contains(text(),"${question?.answers[0].answerContent}")]`)
+
+                                            let hasAnswer = false
+                                            // 获取答案选择列
+                                            let exerciesRadio = await page.$x('//li[contains(@class,"AsideExercise_RadioItem_")]');
+                                            for (let answer of question?.answers || []) {
+                                                // 遍历答案选择列
+                                                if (answer.isRight) {
+                                                    console.log(`正确答案： ${answer.answerContent}`);
+
+                                                    for await (let radio of exerciesRadio) {
+                                                        let radioContent = await radio.handle.evaluate(element => {
+                                                            return element?.children[0]?.innerText
+                                                        });
+                                                        if (radioContent == answer.answerContent) {
+                                                            await radio.click()
+                                                            hasAnswer = true
+
+                                                            await waitamount(500)
+                                                            break
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            if (hasAnswer) {
+                                                // 检测 下一题 按钮
+                                                let nextQueBut = await page.$x('//div[contains(@class,"AsideExercise_root_")]/button[contains(text(),"下一题")]');
+
+                                                if (nextQueBut?.length) {
+                                                    nextQueBut[0].click()
+                                                } else {
+                                                    // 检测 完成 按钮
+                                                    let finishBut = await page.$x('//div[contains(@class,"AsideExercise_root_")]/button[contains(text(),"提交")]');
+                                                    if (finishBut?.length) {
+                                                        finishBut[0].click()
+                                                    } else {
+                                                        console.error(`下一步 迷茫`);
+                                                    }
+                                                }
+
+                                                await waitamount(1000)
+                                                let a = 1
+                                            }
+                                        }
+
+                                    }
 
 
-                        // await waitamount()
-                        if (studyPlanListRes?.ok()) {
-                            const studyPlanList = (await studyPlanListRes.json()).data || [];
-                            for (let studyPlan of studyPlanList?.courseList || []) {
-                                console.log(`遍历课程 ${studyPlan.courseName} 状态 ${studyPlan?.studyState}`);
-                                if (studyPlan?.studyState == 2) {
-                                    // 已完成
-                                } else if (studyPlan?.studyState == 1 || studyPlan?.studyState == 0) {
-                                    // 进行中 || 未开始
-                                    const classUrl = domain + '/course/video/' + studyPlan.planId + '/' + studyPlanList.studentPlanId + '/' + studyPlan.courseId
-                                    console.log(`课程学习跳转 ${studyPlan.courseName}`);
+                                }
+                                console.log(`答题完毕`);
 
-                                    await page.goto(classUrl);
+                                // 课程小结之间 要把提示点掉
+                                // 等待弹框出现
+                                const gotBut = await page.waitForXPath(`//div[contains(@class,"Alert_root_")]/button[contains(text(),"知道了")]`)
 
-                                    breakTemp = true
+                                if (gotBut) {
+                                    gotBut.click()
                                 }
 
-                                if (breakTemp) break
+                                await waitamount(300)
+
+                                breakTemp = true
                             }
 
-
-                            // throw 'xxx'
+                            if (breakTemp) break
                         }
 
 
-                    } else if (p.planState == -1) {
-                        await waitamount()
-                        // 未开始
+                        // throw 'xxx'
                     }
 
-                    if (breakTemp) break
-                }
-            }
 
+                } else if (p.planState == -1) {
+                    await waitamount()
+                    // 未开始
+                }
+
+                if (breakTemp) break
+            }
         }
 
-
-
-
-
+        await waitamount(20 * 1000)
         await browser.close();
     } else {
         console.log("Element not found.");
