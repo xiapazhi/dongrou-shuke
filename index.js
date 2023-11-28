@@ -355,12 +355,24 @@ try {
                         //     }
                         // );
 
-                        let [studyPlanListRes] = await Promise.all([
+                        let [studyPlanListRes, progressStateRes] = await Promise.all([
                             page.waitForResponse(
+                                // 年度学习课程
                                 async response => {
                                     // console.log(`年度课程 GET RESPONSE: ${response.url()}`);
                                     if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
                                     return await response.text();
+                                }
+                            ),
+                            page.waitForResponse(
+                                // 进度状态
+                                // 说明在 getProcessInfoList 里
+                                async response => {
+                                    if (response.url().includes('getProcessState')) {
+                                        return await response.text();
+                                    } else {
+                                        return false
+                                    }
                                 }
                             ),
                             page.goto(goYearStudyUrl),
@@ -368,8 +380,10 @@ try {
                         console.log(studyPlanListRes);
 
                         // await waitamount()
-                        if (studyPlanListRes?.ok()) {
+                        if (studyPlanListRes?.ok() && progressStateRes?.ok()) {
                             const studyPlanList = (await studyPlanListRes.json()).data || [];
+                            const progressState = (await progressStateRes.json()).data || {};
+
                             for (let studyPlan of studyPlanList?.courseList || []) {
                                 console.log(`检查课程 ${studyPlan.courseName} 状态 ${studyPlan?.studyState}`);
                                 if (studyPlan?.studyState == 2) {
@@ -378,7 +392,7 @@ try {
                                     // 进行中 || 未开始
 
                                     // 查询 cookies
-                                    const cookies = await page.cookies()
+                                    // const cookies = await page.cookies()
                                     // 查询课程小节列表  没有查询成功
                                     // const causeListUrl = domain + `/zjkj/course/getCourseInfo?planId=${yearPlan.planId}&courseId=${studyPlan.courseId}&studentPlanId=${studyPlanList.studentPlanId}`
                                     // const causeListRes = await request.get(
@@ -401,13 +415,68 @@ try {
 
                                     await waitamount(300)
 
+
+
                                     // breakTemp = true
                                 }
 
                                 // if (breakTemp) break
                             }
+
+                            console.log(progressState);
+
+
+
+                            // 课程遍历完毕 检测一下考试情况
+                            console.log(studyPlanList.haveExam, studyPlanList.canExam);
+                            if (studyPlanList.haveExam == 1 && studyPlanList.canExam == 1) {
+                                // 有考试并且可以考试
+                                const examButXpath = `//div[contains(@class,"CourseList_PersonInfo_")]//button[contains(text(),"考试 ")]`;
+                                // const examBut = await page.$x(examButXpath);
+                                const examBut = await page.waitForXPath(examButXpath)
+
+                                console.log('examBut', examBut);
+                                let jumpBut = null
+                                if (examBut.length) {
+                                    if (progressState.data == 3) {
+                                        examBut.click();
+                                        // 学习状态 点考试的话会弹框
+                                        const confirmButXpath = `//div[contains(@class,"ModalBase_box_")]//button[contains(text(),"确定")]`;
+                                        const confirmBut = await page.waitForXPath(confirmButXpath)
+
+                                        console.log(`asdadasdasd`, confirmBut);
+                                        if (confirmBut.length) {
+                                            // 点击确认考试
+                                            // confirmBut[0].click();
+                                            jumpBut = confirmBut
+                                        }
+                                    } else {
+                                        jumpBut = examBut
+                                    }
+
+                                    console.log(`考试课程选择`);
+                                    jumpBut.click()
+
+                                    const intoExamButXpath = `//div[contains(@class,"Selection_confirm_")]//button[contains(text(),"进入考试")]`;
+                                    const intoExamBut = await page.waitForXPath(intoExamButXpath)
+                                    intoExamBut.click()
+
+                                    const begainExamButXpath = `//div[contains(@class,"ExamSelectionConfirm_buttonList_")]//a[contains(text(),"开始考试")]`;
+                                    const begainExamBut = await page.waitForXPath(begainExamButXpath)
+                                    begainExamBut.click()
+
+
+
+                                    // breakTemp = true
+                                }
+                            }
+                        } else {
+                            //!TODO 发生错误 稍后重试
                         }
                     }
+
+
+
 
                     if (breakTemp) break
                 }
