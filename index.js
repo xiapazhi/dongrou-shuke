@@ -30,9 +30,9 @@ try {
                 height: 720,
             },
             slowMo: 30, // slow down by 250ms
-            devtools: true,
-            // args: [`--window-size=1280,880`],
-            args: [`--window-size=1920,1080`]
+            // devtools: true,
+            args: [`--window-size=1280,880`],
+            // args: [`--window-size=1920,1080`]
         });
         browser.on('close', () => {
             // 在这里可以执行其他操作，例如保存日志或清理资源。  
