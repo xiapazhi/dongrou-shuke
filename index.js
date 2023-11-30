@@ -9,7 +9,8 @@ puppeteer.use(StealthPlugin())
 const UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
 
 try {
-    const waitamount = async (time = 1000) => {
+    const waitamount = async (time = Math.random() * 1000 + 500) => {
+        console.log(`等待 ${time} ms`);
         await new Promise(resolve => setTimeout(() => resolve(), time));
     }
 
@@ -29,8 +30,9 @@ try {
                 height: 720,
             },
             slowMo: 30, // slow down by 250ms
-            // devtools: true,
-            args: [`--window-size=1280,880`]
+            devtools: true,
+            // args: [`--window-size=1280,880`],
+            args: [`--window-size=1920,1080`]
         });
         browser.on('close', () => {
             // 在这里可以执行其他操作，例如保存日志或清理资源。  
@@ -337,6 +339,9 @@ try {
 
                 let breakTemp = false
                 for (let yearPlan of yearPlanList) {
+                    if (yearPlan.execYear == 2022) {
+                        continue
+                    }
                     console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
                     if (yearPlan.planState == 2) {
                         // 已完成
@@ -377,7 +382,6 @@ try {
                             ),
                             page.goto(goYearStudyUrl),
                         ])
-                        console.log(studyPlanListRes);
 
                         // await waitamount()
                         if (studyPlanListRes?.ok() && progressStateRes?.ok()) {
@@ -423,49 +427,153 @@ try {
                                 // if (breakTemp) break
                             }
 
-                            console.log(progressState);
-
+                            console.log(`！！！当前进度状态！！！【${progressState}】！！！`);
 
 
                             // 课程遍历完毕 检测一下考试情况
-                            console.log(studyPlanList.haveExam, studyPlanList.canExam);
                             if (studyPlanList.haveExam == 1 && studyPlanList.canExam == 1) {
+                                console.log('检测到考试');
                                 // 有考试并且可以考试
                                 const examButXpath = `//div[contains(@class,"CourseList_PersonInfo_")]//button[contains(text(),"考试 ")]`;
                                 // const examBut = await page.$x(examButXpath);
                                 const examBut = await page.waitForXPath(examButXpath)
 
-                                console.log('examBut', examBut);
-                                let jumpBut = null
-                                if (examBut.length) {
-                                    if (progressState.data == 3) {
+                                if (examBut) {
+                                    console.log(`确认考试`);
+                                    if (progressState == 3) {
                                         examBut.click();
                                         // 学习状态 点考试的话会弹框
                                         const confirmButXpath = `//div[contains(@class,"ModalBase_box_")]//button[contains(text(),"确定")]`;
                                         const confirmBut = await page.waitForXPath(confirmButXpath)
+                                        confirmBut.click()
 
-                                        console.log(`asdadasdasd`, confirmBut);
-                                        if (confirmBut.length) {
-                                            // 点击确认考试
-                                            // confirmBut[0].click();
-                                            jumpBut = confirmBut
-                                        }
+                                        await waitamount()
+
+                                        console.log(`选择考试课程[默认全选]`);
+                                        const confirmSelectedButXpath = `//div[contains(@class,"Selection_root_")]//button[contains(text(),"确认选择")]`;
+                                        const confirmSelectedBut = await page.waitForXPath(confirmSelectedButXpath)
+                                        await confirmSelectedBut.click()
                                     } else {
-                                        jumpBut = examBut
+                                        examBut.click()
+                                        console.log(`确认进入考试`);
+                                        await waitamount()
+                                        const intoExamButXpath = `//div[contains(@class,"Selection_confirm_")]//button[contains(text(),"进入考试")]`;
+                                        const intoExamBut = await page.waitForXPath(intoExamButXpath)
+                                        intoExamBut.click()
                                     }
 
-                                    console.log(`考试课程选择`);
-                                    jumpBut.click()
-
-                                    const intoExamButXpath = `//div[contains(@class,"Selection_confirm_")]//button[contains(text(),"进入考试")]`;
-                                    const intoExamBut = await page.waitForXPath(intoExamButXpath)
-                                    intoExamBut.click()
+                                    // 
 
                                     const begainExamButXpath = `//div[contains(@class,"ExamSelectionConfirm_buttonList_")]//a[contains(text(),"开始考试")]`;
+
+                                    console.log(`开始考试`);
+                                    await waitamount()
                                     const begainExamBut = await page.waitForXPath(begainExamButXpath)
-                                    begainExamBut.click()
+
+                                    //
+
+                                    const [examExercises] = await Promise.all([
+                                        page.waitForResponse(
+                                            // 所有试题+答案列表
+                                            async response => {
+                                                if (
+                                                    response.url().includes('exercise/getExamExercises')
+                                                ) {
+                                                    return await response.text();
+                                                } else {
+                                                    return false
+                                                }
+                                            }
+                                        ),
+                                        begainExamBut.click(),
+                                    ]);
+
+                                    const examExercisesD = (await examExercises.json()).data || {};
+
+                                    console.log(`解析答案列表`);
+                                    const examQuestionTypes = examExercisesD.questionTypes || [];
+
+                                    console.log(`解析题目列表`);
+                                    const questionItemXpath = `//div[contains(@class,"QuestionList_questionStem_")]`
+                                    const questionItem = await page.waitForXPath(questionItemXpath)
+                                    const questionItems = await page.$x(questionItemXpath)
+
+                                    const questionTitleXpath = `//div[contains(@class,"QuestionList_checkTitle_")]`
+                                    for (let qi of questionItems) {
+                                        const questionTitle = await qi.$x(questionTitleXpath);
+                                        if (questionTitle.length) {
+                                            let qtTextHandle = questionTitle[0]
+
+                                            console.log(`滚动到题目位置`);
+                                            await qtTextHandle.scrollIntoView()
+
+                                            let qtText = await qtTextHandle.evaluate(element => {
+                                                return element.innerText
+                                            });
+                                            console.log(`题目：${qtText}`);
+
+                                            qtText = qtText.replace(/^\d+\./, '').replace(/\s+/g, '');
+                                            // 循环 examQuestionTypes 查找问题
+                                            let answer = ''
+                                            for (let qType of examQuestionTypes) {
+                                                for (let q of qType.questions) {
+                                                    if (q.examinationContent.replace(/\s+/g, '') == qtText) {
+                                                        for (let a of q.answers) {
+                                                            if (a.isRight) {
+                                                                console.log(`答案：${a.answerContent}`);
+                                                                answer = a.answerContent
+                                                                break
+                                                            }
+                                                        }
+                                                        if (answer) {
+                                                            break
+                                                        }
+                                                    }
+                                                }
+                                                if (answer) {
+                                                    break
+                                                }
+                                            }
+                                            if (answer) {
+                                                // 找答案对应的 dom
+                                                const answerRadio = await qi.$x(`//li[contains(@class,"QuestionList_optionsLi_")]/div[contains(text(),"${answer}")]`);
+
+                                                if (answerRadio.length) {
+                                                    console.log(`选择答案`);
+                                                    await answerRadio[0].click()
+                                                    await waitamount(
+                                                        (Math.random() * 1000 + 1000) * 20
+                                                        // (Math.random() * 1000 + 1000) * 1
+                                                    )
+                                                } else {
+                                                    console.warn(`未找到答案对应按钮`);
+                                                }
+                                            } else {
+                                                console.warn(`未找到答案`);
+                                            }
+                                        }
 
 
+                                        let a = 1
+                                    }
+
+                                    console.log(`交卷`);
+                                    await waitamount()
+                                    const submitExamButXpath = await page.waitForXPath(`//div[contains(@class,"Header_HeaderSlotTools_")]//button[contains(text(),"我要交卷")]`)
+                                    if (submitExamButXpath) {
+                                        await submitExamButXpath.click()
+                                        await waitamount()
+                                        console.log(`确认交卷`);
+
+                                        const confirmSubmitExamBut = await page.waitForXPath(`//div[contains(@class,"Confirm_root_")]//button[contains(text(),"确定")]`)
+                                        if (confirmSubmitExamBut) {
+                                            await confirmSubmitExamBut.click()
+                                            await waitamount()
+                                            console.log(`交卷成功`);
+                                        } else {
+                                            console.warn(`未找到交卷确认按钮`);
+                                        }
+                                    }
 
                                     // breakTemp = true
                                 }
