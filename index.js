@@ -339,9 +339,7 @@ try {
 
                 let breakTemp = false
                 for (let yearPlan of yearPlanList) {
-                    if (yearPlan.execYear == 2022) {
-                        continue
-                    }
+
                     console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
                     if (yearPlan.planState == 2) {
                         // 已完成
