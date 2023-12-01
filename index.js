@@ -351,7 +351,6 @@ try {
 
                     const yearPlanList = (await yearPlanListRes.json()).data?.list || [];
 
-                    let breakTemp = false
                     for (let yearPlan of yearPlanList) {
 
                         console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
@@ -361,6 +360,7 @@ try {
                             await waitamount()
                             // 进行中
 
+                            // TODO 选课
                             const enterYearStudy = async () => {
                                 const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId
                                 console.log(`年度课程跳转 ${yearPlan.execYear} ${goYearStudyUrl}`);
