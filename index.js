@@ -353,6 +353,10 @@ try {
 
                     for (let yearPlan of yearPlanList) {
 
+                        if (yearPlan.execYear != 2018) {
+                            continue
+                        }
+
                         console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
                         if (yearPlan.planState == 2) {
                             // 已完成
@@ -361,6 +365,9 @@ try {
                             // 进行中
 
                             // TODO 选课
+
+                            const reEnterCount = 0
+                            const maxReEnterCount = 3
                             const enterYearStudy = async () => {
                                 const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId
                                 console.log(`年度课程跳转 ${yearPlan.execYear} ${goYearStudyUrl}`);
@@ -392,10 +399,94 @@ try {
                                 if (
                                     studyPlanListRes?.ok() && progressStateRes?.ok()
                                 ) {
-                                    const studyPlanList = (await studyPlanListRes.json()).data || [];
+                                    const studyPlanInfo = (await studyPlanListRes.json()).data || [];
                                     const progressState = (await progressStateRes.json()).data || {};
 
-                                    for (let studyPlan of studyPlanList?.courseList || []) {
+                                    if (
+                                        studyPlanInfo.selectExamCourseHours < studyPlanInfo.examCourseHours
+                                        || studyPlanInfo.selectPublicCourseHours < studyPlanInfo.publicCourseHours
+                                    ) {
+                                        console.log(`检测到课程选择不达分数标准`);
+
+                                        const selectCourseButXpath = `//div[contains(@class,"CourseList_title")]//button[contains(text(),"选择课程")]`;
+                                        const selectCourseBut = await page.waitForXPath(selectCourseButXpath);
+                                        const [
+                                            couseListRes,
+                                            choseOptionRes,
+                                        ] = await Promise.all([
+                                            page.waitForResponse(
+                                                // 所有课程
+                                                async response => {
+                                                    if (response.url().includes('customerPlanCourse/getCourse')) {
+                                                        return await response.text();
+                                                    } else {
+                                                        return false
+                                                    }
+                                                }
+                                            ),
+                                            page.waitForResponse(
+                                                // 
+                                                async response => {
+                                                    if (response.url().includes('customerPlan/getChooseOptions')) {
+                                                        return await response.text();
+                                                    } else {
+                                                        return false
+                                                    }
+                                                }
+                                            ),
+                                            selectCourseBut.click(),
+                                        ]);
+
+                                        const couseList = (await couseListRes.json()).data || [];
+                                        const choseOption = (await choseOptionRes.json()).data || [];
+
+                                        console.log(`计算已选的课程分数`);
+                                        let selectedExamCourseUnit = 0 // 专业课分数
+                                        let selectedPublicCouseUnit = 0 // 公共课分数
+
+                                        let index = 0
+                                        for (let cl of couseList || []) {
+                                            if (cl.examCourseFlag == 1) {
+                                                if (cl.isForce == 1) {
+                                                    console.log(index, parseInt(cl.unit));
+                                                    selectedExamCourseUnit += parseInt(cl.unit)
+                                                }
+                                            } else {
+                                                // cl.examCourseFlag == 0
+                                                if (cl.isForce == 1) {
+                                                    selectedPublicCouseUnit += parseInt(cl.unit)
+                                                }
+                                            }
+                                            index++
+                                        }
+
+                                        console.log(`已选 专业课：${selectedExamCourseUnit}/${choseOption.examTotalUnit} 公需课：${selectedPublicCouseUnit}/${choseOption.pracTotalUnit}`);
+                                        if (
+                                            selectedExamCourseUnit < choseOption.examTotalUnit
+                                            || selectedPublicCouseUnit < choseOption.pracTotalUnit
+                                        ) {
+                                            console.log(`一键选课`);
+                                            const quickSelectButXpath = `//div[contains(@class,"QuickSelection_root_")]//button[contains(text(),"一键选课")]`;
+                                            const quickSelectBut = await page.waitForXPath(quickSelectButXpath);
+                                            await quickSelectBut.click();
+
+                                            const confirmSelectButXpath = `//div[contains(@class,"SelectionStatus_root")]//button[contains(text(),"确认选课")]`;
+                                            const confirmSelectBut = await page.waitForXPath(confirmSelectButXpath);
+                                            // await confirmSelectBut.click();
+                                        } else {
+                                            console.log(`确认选课`);
+                                            const confirmSelectButXpath = `//div[contains(@class,"SelectionStatus_root")]//button[contains(text(),"去确认")]`;
+                                            const confirmSelectBut = await page.waitForXPath(confirmSelectButXpath);
+                                            await confirmSelectBut.click();
+                                        }
+
+                                        await waitamount(10000)
+                                        await browser.close();
+
+                                    }
+
+
+                                    for (let studyPlan of studyPlanInfo?.courseList || []) {
                                         console.log(`检查课程 ${studyPlan.courseName} 状态 ${studyPlan?.studyState}`);
                                         if (studyPlan?.studyState == 2) {
                                             // 已完成
@@ -405,7 +496,7 @@ try {
                                             // 查询 cookies
                                             // const cookies = await page.cookies()
                                             // 查询课程小节列表  没有查询成功
-                                            // const causeListUrl = domain + `/zjkj/course/getCourseInfo?planId=${yearPlan.planId}&courseId=${studyPlan.courseId}&studentPlanId=${studyPlanList.studentPlanId}`
+                                            // const causeListUrl = domain + `/zjkj/course/getCourseInfo?planId=${yearPlan.planId}&courseId=${studyPlan.courseId}&studentPlanId=${studyPlanInfo.studentPlanId}`
                                             // const causeListRes = await request.get(
                                             //     causeListUrl
                                             // ).set({
@@ -414,7 +505,7 @@ try {
                                             //     'User-Agent': UserAgent,
                                             // })
 
-                                            const classUrl = domain + '/course/video/' + yearPlan.planId + '/' + studyPlanList.studentPlanId + '/' + studyPlan.courseId + '/0'
+                                            const classUrl = domain + '/course/video/' + yearPlan.planId + '/' + studyPlanInfo.studentPlanId + '/' + studyPlan.courseId + '/0'
                                             console.log(`课程学习跳转 ${studyPlan.courseName}`);
 
                                             // await page.goto(classUrl);
@@ -438,8 +529,8 @@ try {
 
                                     // 课程遍历完毕 检测一下考试情况
                                     if (
-                                        false &&
-                                        studyPlanList.haveExam == 1 && studyPlanList.canExam == 1
+                                        // false &&
+                                        studyPlanInfo.haveExam == 1 && studyPlanInfo.canExam == 1
                                     ) {
                                         console.log('检测到考试');
                                         // 有考试并且可以考试
@@ -586,6 +677,12 @@ try {
                                         }
                                     } else {
                                         console.warn(`非考试状态，重载页面`);
+
+                                        if (reEnterCount >= maxReEnterCount) {
+                                            console.error(`重试次数过多，退出`);
+                                            return
+                                        }
+                                        reEnterCount++
                                         await enterYearStudy()
                                     }
                                 } else {
@@ -622,7 +719,7 @@ try {
                 console.error(`重试次数过多，退出`);
                 return
             }
-            run()
+            // run()
         }
     }
 
