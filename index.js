@@ -254,7 +254,7 @@ try {
                             }
                         }
 
-                        console.log(`进度 ${process}`);
+                        console.info('\x1B[33m%s\x1b[0m', `进度 ${process}`);
                         const processNumber = Number(process.replace('%', '').replace('px', ''))
                         if (processNumber < 100) {
                             await waitamount()
@@ -357,252 +357,253 @@ try {
                         console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
                         if (yearPlan.planState == 2) {
                             // 已完成
-                        } else if (yearPlan.planState == 0 || yearPlan.planState == -1) {
+                        } else if (yearPlan.planState == 0) {
                             await waitamount()
                             // 进行中
-                            const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId
-                            console.log(`年度课程跳转 ${yearPlan.execYear} ${goYearStudyUrl}`);
 
-                            // await page.goto(goYearStudyUrl);
-                            // const studyPlanListRes = await page.waitForResponse(
-                            //     async response => {
-                            //         console.log(`年度课程 GET RESPONSE: ${response.url()}`);
-                            //         if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
-                            //         return await response.text();
-                            //     }
-                            // );
+                            const enterYearStudy = async () => {
+                                const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId
+                                console.log(`年度课程跳转 ${yearPlan.execYear} ${goYearStudyUrl}`);
 
-                            let [studyPlanListRes, progressStateRes] = await Promise.all([
-                                page.waitForResponse(
-                                    // 年度学习课程
-                                    async response => {
-                                        // console.log(`年度课程 GET RESPONSE: ${response.url()}`);
-                                        if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
-                                        return await response.text();
-                                    }
-                                ),
-                                page.waitForResponse(
-                                    // 进度状态
-                                    // 说明在 getProcessInfoList 里
-                                    async response => {
-                                        if (response.url().includes('getProcessState')) {
+                                let [studyPlanListRes, progressStateRes] = await Promise.all([
+                                    page.waitForResponse(
+                                        // 年度学习课程
+                                        async response => {
+                                            // console.log(`年度课程 GET RESPONSE: ${response.url()}`);
+                                            if (response.url() !== domain + '/JXJY/zjkj/studentPlan/studyPlan?planId=' + yearPlan.planId) return false
                                             return await response.text();
-                                        } else {
-                                            return false
                                         }
-                                    }
-                                ),
-                                page.goto(goYearStudyUrl),
-                            ])
+                                    ),
+                                    page.waitForResponse(
+                                        // 进度状态
+                                        // 说明在 getProcessInfoList 里
+                                        async response => {
+                                            if (response.url().includes('getProcessState')) {
+                                                return await response.text();
+                                            } else {
+                                                return false
+                                            }
+                                        }
+                                    ),
+                                    page.goto(goYearStudyUrl),
+                                ])
 
-                            // await waitamount()
-                            if (studyPlanListRes?.ok() && progressStateRes?.ok()) {
-                                const studyPlanList = (await studyPlanListRes.json()).data || [];
-                                const progressState = (await progressStateRes.json()).data || {};
+                                // await waitamount()
+                                if (
+                                    studyPlanListRes?.ok() && progressStateRes?.ok()
+                                ) {
+                                    const studyPlanList = (await studyPlanListRes.json()).data || [];
+                                    const progressState = (await progressStateRes.json()).data || {};
 
-                                for (let studyPlan of studyPlanList?.courseList || []) {
-                                    console.log(`检查课程 ${studyPlan.courseName} 状态 ${studyPlan?.studyState}`);
-                                    if (studyPlan?.studyState == 2) {
-                                        // 已完成
-                                    } else if (studyPlan?.studyState == 1 || studyPlan?.studyState == 0) {
-                                        // 进行中 || 未开始
+                                    for (let studyPlan of studyPlanList?.courseList || []) {
+                                        console.log(`检查课程 ${studyPlan.courseName} 状态 ${studyPlan?.studyState}`);
+                                        if (studyPlan?.studyState == 2) {
+                                            // 已完成
+                                        } else if (studyPlan?.studyState == 1 || studyPlan?.studyState == 0) {
+                                            // 进行中 || 未开始
 
-                                        // 查询 cookies
-                                        // const cookies = await page.cookies()
-                                        // 查询课程小节列表  没有查询成功
-                                        // const causeListUrl = domain + `/zjkj/course/getCourseInfo?planId=${yearPlan.planId}&courseId=${studyPlan.courseId}&studentPlanId=${studyPlanList.studentPlanId}`
-                                        // const causeListRes = await request.get(
-                                        //     causeListUrl
-                                        // ).set({
-                                        //     'Cookie': cookies.map(item => `${item.name}=${item.value}`).join(';'),
-                                        //     Token: checkHeader.token,
-                                        //     'User-Agent': UserAgent,
-                                        // })
+                                            // 查询 cookies
+                                            // const cookies = await page.cookies()
+                                            // 查询课程小节列表  没有查询成功
+                                            // const causeListUrl = domain + `/zjkj/course/getCourseInfo?planId=${yearPlan.planId}&courseId=${studyPlan.courseId}&studentPlanId=${studyPlanList.studentPlanId}`
+                                            // const causeListRes = await request.get(
+                                            //     causeListUrl
+                                            // ).set({
+                                            //     'Cookie': cookies.map(item => `${item.name}=${item.value}`).join(';'),
+                                            //     Token: checkHeader.token,
+                                            //     'User-Agent': UserAgent,
+                                            // })
 
-                                        const classUrl = domain + '/course/video/' + yearPlan.planId + '/' + studyPlanList.studentPlanId + '/' + studyPlan.courseId + '/0'
-                                        console.log(`课程学习跳转 ${studyPlan.courseName}`);
+                                            const classUrl = domain + '/course/video/' + yearPlan.planId + '/' + studyPlanList.studentPlanId + '/' + studyPlan.courseId + '/0'
+                                            console.log(`课程学习跳转 ${studyPlan.courseName}`);
 
-                                        // await page.goto(classUrl);
+                                            // await page.goto(classUrl);
 
-                                        await loopStudyCause({
-                                            classUrl,
-                                            studyPlan,
-                                        })
+                                            await loopStudyCause({
+                                                classUrl,
+                                                studyPlan,
+                                            })
 
-                                        await waitamount(300)
-
-
-
-                                        // breakTemp = true
-                                    }
-
-                                    // if (breakTemp) break
-                                }
-
-                                console.log(`！！！当前进度状态！！！【${progressState}】！！！`);
+                                            await waitamount(300)
 
 
-                                // 课程遍历完毕 检测一下考试情况
-                                if (studyPlanList.haveExam == 1 && studyPlanList.canExam == 1) {
-                                    console.log('检测到考试');
-                                    // 有考试并且可以考试
-                                    const examButXpath = `//div[contains(@class,"CourseList_PersonInfo_")]//button[contains(text(),"考试 ")]`;
-                                    // const examBut = await page.$x(examButXpath);
-                                    const examBut = await page.waitForXPath(examButXpath)
 
-                                    if (examBut) {
-                                        console.log(`确认考试`);
-                                        if (progressState == 3) {
-                                            examBut.click();
-                                            // 学习状态 点考试的话会弹框
-                                            const confirmButXpath = `//div[contains(@class,"ModalBase_box_")]//button[contains(text(),"确定")]`;
-                                            const confirmBut = await page.waitForXPath(confirmButXpath)
-                                            confirmBut.click()
-
-                                            await waitamount()
-
-                                            console.log(`选择考试课程[默认全选]`);
-                                            const confirmSelectedButXpath = `//div[contains(@class,"Selection_root_")]//button[contains(text(),"确认选择")]`;
-                                            const confirmSelectedBut = await page.waitForXPath(confirmSelectedButXpath)
-                                            await confirmSelectedBut.click()
-                                        } else {
-                                            examBut.click()
-                                            console.log(`确认进入考试`);
-                                            await waitamount()
-                                            const intoExamButXpath = `//div[contains(@class,"Selection_confirm_")]//button[contains(text(),"进入考试")]`;
-                                            const intoExamBut = await page.waitForXPath(intoExamButXpath)
-                                            intoExamBut.click()
+                                            // breakTemp = true
                                         }
 
-                                        // 
+                                        // if (breakTemp) break
+                                    }
 
-                                        const begainExamButXpath = `//div[contains(@class,"ExamSelectionConfirm_buttonList_")]//a[contains(text(),"开始考试")]`;
+                                    console.log(`！！！当前进度状态！！！【${progressState}】！！！`);
 
-                                        console.log(`开始考试`);
-                                        await waitamount()
-                                        const begainExamBut = await page.waitForXPath(begainExamButXpath)
+                                    // 课程遍历完毕 检测一下考试情况
+                                    if (
+                                        false &&
+                                        studyPlanList.haveExam == 1 && studyPlanList.canExam == 1
+                                    ) {
+                                        console.log('检测到考试');
+                                        // 有考试并且可以考试
+                                        const examButXpath = `//div[contains(@class,"CourseList_PersonInfo_")]//button[contains(text(),"考试 ")]`;
+                                        // const examBut = await page.$x(examButXpath);
+                                        const examBut = await page.waitForXPath(examButXpath)
 
-                                        //
+                                        if (examBut) {
+                                            console.log(`确认考试`);
+                                            if (progressState == 3) {
+                                                examBut.click();
+                                                // 学习状态 点考试的话会弹框
+                                                const confirmButXpath = `//div[contains(@class,"ModalBase_box_")]//button[contains(text(),"确定")]`;
+                                                const confirmBut = await page.waitForXPath(confirmButXpath)
+                                                confirmBut.click()
 
-                                        const [examExercises] = await Promise.all([
-                                            page.waitForResponse(
-                                                // 所有试题+答案列表
-                                                async response => {
-                                                    if (
-                                                        response.url().includes('exercise/getExamExercises')
-                                                    ) {
-                                                        return await response.text();
-                                                    } else {
-                                                        return false
+                                                await waitamount()
+
+                                                console.log(`选择考试课程[默认全选]`);
+                                                const confirmSelectedButXpath = `//div[contains(@class,"Selection_root_")]//button[contains(text(),"确认选择")]`;
+                                                const confirmSelectedBut = await page.waitForXPath(confirmSelectedButXpath)
+                                                await confirmSelectedBut.click()
+                                            } else {
+                                                examBut.click()
+                                                console.log(`确认进入考试`);
+                                                await waitamount()
+                                                const intoExamButXpath = `//div[contains(@class,"Selection_confirm_")]//button[contains(text(),"进入考试")]`;
+                                                const intoExamBut = await page.waitForXPath(intoExamButXpath)
+                                                intoExamBut.click()
+                                            }
+
+                                            // 
+
+                                            const begainExamButXpath = `//div[contains(@class,"ExamSelectionConfirm_buttonList_")]//a[contains(text(),"开始考试")]`;
+
+                                            console.log(`开始考试`);
+                                            await waitamount()
+                                            const begainExamBut = await page.waitForXPath(begainExamButXpath)
+
+                                            //
+
+                                            const [examExercises] = await Promise.all([
+                                                page.waitForResponse(
+                                                    // 所有试题+答案列表
+                                                    async response => {
+                                                        if (
+                                                            response.url().includes('exercise/getExamExercises')
+                                                        ) {
+                                                            return await response.text();
+                                                        } else {
+                                                            return false
+                                                        }
                                                     }
-                                                }
-                                            ),
-                                            begainExamBut.click(),
-                                        ]);
+                                                ),
+                                                begainExamBut.click(),
+                                            ]);
 
-                                        const examExercisesD = (await examExercises.json()).data || {};
+                                            const examExercisesD = (await examExercises.json()).data || {};
 
-                                        console.log(`解析答案列表`);
-                                        const examQuestionTypes = examExercisesD.questionTypes || [];
+                                            console.log(`解析答案列表`);
+                                            const examQuestionTypes = examExercisesD.questionTypes || [];
 
-                                        console.log(`解析题目列表`);
-                                        const questionItemXpath = `//div[contains(@class,"QuestionList_questionStem_")]`
-                                        const questionItem = await page.waitForXPath(questionItemXpath)
-                                        const questionItems = await page.$x(questionItemXpath)
+                                            console.log(`解析题目列表`);
+                                            const questionItemXpath = `//div[contains(@class,"QuestionList_questionStem_")]`
+                                            const questionItem = await page.waitForXPath(questionItemXpath)
+                                            const questionItems = await page.$x(questionItemXpath)
 
-                                        const questionTitleXpath = `//div[contains(@class,"QuestionList_checkTitle_")]`
-                                        for (let qi of questionItems) {
-                                            const questionTitle = await qi.$x(questionTitleXpath);
-                                            if (questionTitle.length) {
-                                                let qtTextHandle = questionTitle[0]
+                                            const questionTitleXpath = `//div[contains(@class,"QuestionList_checkTitle_")]`
+                                            for (let qi of questionItems) {
+                                                const questionTitle = await qi.$x(questionTitleXpath);
+                                                if (questionTitle.length) {
+                                                    let qtTextHandle = questionTitle[0]
 
-                                                console.log(`滚动到题目位置`);
-                                                await qtTextHandle.scrollIntoView()
+                                                    console.log(`滚动到题目位置`);
+                                                    await qtTextHandle.scrollIntoView()
 
-                                                let qtText = await qtTextHandle.evaluate(element => {
-                                                    return element.innerText
-                                                });
-                                                console.log(`题目：${qtText}`);
+                                                    let qtText = await qtTextHandle.evaluate(element => {
+                                                        return element.innerText
+                                                    });
+                                                    console.log(`题目：${qtText}`);
 
-                                                qtText = qtText.replace(/^\d+\./, '').replace(/\s+/g, '');
-                                                // 循环 examQuestionTypes 查找问题
-                                                let answer = ''
-                                                for (let qType of examQuestionTypes) {
-                                                    for (let q of qType.questions) {
-                                                        if (q.examinationContent.replace(/\s+/g, '') == qtText) {
-                                                            for (let a of q.answers) {
-                                                                if (a.isRight) {
-                                                                    console.log(`答案：${a.answerContent}`);
-                                                                    answer = a.answerContent
+                                                    qtText = qtText.replace(/^\d+\./, '').replace(/\s+/g, '');
+                                                    // 循环 examQuestionTypes 查找问题
+                                                    let answer = ''
+                                                    for (let qType of examQuestionTypes) {
+                                                        for (let q of qType.questions) {
+                                                            if (q.examinationContent.replace(/\s+/g, '') == qtText) {
+                                                                for (let a of q.answers) {
+                                                                    if (a.isRight) {
+                                                                        console.log(`答案：${a.answerContent}`);
+                                                                        answer = a.answerContent
+                                                                        break
+                                                                    }
+                                                                }
+                                                                if (answer) {
                                                                     break
                                                                 }
                                                             }
-                                                            if (answer) {
-                                                                break
-                                                            }
+                                                        }
+                                                        if (answer) {
+                                                            break
                                                         }
                                                     }
                                                     if (answer) {
-                                                        break
-                                                    }
-                                                }
-                                                if (answer) {
-                                                    // 找答案对应的 dom
-                                                    const answerRadio = await qi.$x(`//li[contains(@class,"QuestionList_optionsLi_")]/div[contains(text(),"${answer}")]`);
+                                                        // 找答案对应的 dom
+                                                        const answerRadio = await qi.$x(`//li[contains(@class,"QuestionList_optionsLi_")]/div[contains(text(),"${answer}")]`);
 
-                                                    if (answerRadio.length) {
-                                                        console.log(`选择答案`);
-                                                        await answerRadio[0].click()
-                                                        await waitamount(
-                                                            (Math.random() * 1000 + 1000) * 20
-                                                            // (Math.random() * 1000 + 1000) * 1
-                                                        )
+                                                        if (answerRadio.length) {
+                                                            console.log(`选择答案`);
+                                                            await answerRadio[0].click()
+                                                            await waitamount(
+                                                                (Math.random() * 1000 + 1000) * 20
+                                                                // (Math.random() * 1000 + 1000) * 1
+                                                            )
+                                                        } else {
+                                                            console.warn(`未找到答案对应按钮`);
+                                                        }
                                                     } else {
-                                                        console.warn(`未找到答案对应按钮`);
+                                                        console.warn(`未找到答案`);
                                                     }
+                                                }
+
+
+                                                let a = 1
+                                            }
+
+                                            console.log(`交卷`);
+                                            await waitamount()
+                                            const submitExamButXpath = await page.waitForXPath(`//div[contains(@class,"Header_HeaderSlotTools_")]//button[contains(text(),"我要交卷")]`)
+                                            if (submitExamButXpath) {
+                                                await submitExamButXpath.click()
+                                                await waitamount()
+                                                console.log(`确认交卷`);
+
+                                                const confirmSubmitExamBut = await page.waitForXPath(`//div[contains(@class,"Confirm_root_")]//button[contains(text(),"确定")]`)
+                                                if (confirmSubmitExamBut) {
+                                                    await confirmSubmitExamBut.click()
+                                                    await waitamount()
+                                                    console.log(`交卷成功`);
                                                 } else {
-                                                    console.warn(`未找到答案`);
+                                                    console.warn(`未找到交卷确认按钮`);
                                                 }
                                             }
-
-
-                                            let a = 1
                                         }
-
-                                        console.log(`交卷`);
-                                        await waitamount()
-                                        const submitExamButXpath = await page.waitForXPath(`//div[contains(@class,"Header_HeaderSlotTools_")]//button[contains(text(),"我要交卷")]`)
-                                        if (submitExamButXpath) {
-                                            await submitExamButXpath.click()
-                                            await waitamount()
-                                            console.log(`确认交卷`);
-
-                                            const confirmSubmitExamBut = await page.waitForXPath(`//div[contains(@class,"Confirm_root_")]//button[contains(text(),"确定")]`)
-                                            if (confirmSubmitExamBut) {
-                                                await confirmSubmitExamBut.click()
-                                                await waitamount()
-                                                console.log(`交卷成功`);
-                                            } else {
-                                                console.warn(`未找到交卷确认按钮`);
-                                            }
-                                        }
-
-                                        // breakTemp = true
+                                    } else {
+                                        console.warn(`非考试状态，重载页面`);
+                                        await enterYearStudy()
                                     }
+                                } else {
+                                    //发生错误
                                 }
-                            } else {
-                                //!TODO 发生错误 稍后重试
                             }
-                        }
 
-                        if (breakTemp) break
+                            await enterYearStudy()
+                        } else if (yearPlan.planState == -1) {
+                            console.log(`未付款激活`);
+                        }
                     }
                 }
 
                 await waitamount(20 * 1000)
                 await browser.close();
             } else {
-                console.log("Element not found.");
+
             }
 
 
