@@ -229,7 +229,7 @@ try {
 
                     await waitamount()
 
-                    await page.evaluate(() => {
+                    await page.evaluate(async () => {
                         console.log(`播放 加速 * 2`);
                         const videoCover = document.querySelector('.pv-cover')
                         console.log(videoCover.style.display);
@@ -237,6 +237,7 @@ try {
                             const videoPlayBut = document.querySelector('.pv-icon-btn-play')
                             videoPlayBut.click()
                         }
+                        await waitamount(3000)
                         document.querySelector('.pv-video').playbackRate = 2;
                     })
 
@@ -461,6 +462,8 @@ try {
                                         }
 
                                         console.log(`已选 专业课：${selectedExamCourseUnit}/${choseOption.examTotalUnit} 公需课：${selectedPublicCouseUnit}/${choseOption.pracTotalUnit}`);
+
+                                        let confirmBut = null
                                         if (
                                             selectedExamCourseUnit < choseOption.examTotalUnit
                                             || selectedPublicCouseUnit < choseOption.pracTotalUnit
@@ -472,17 +475,32 @@ try {
 
                                             const confirmSelectButXpath = `//div[contains(@class,"SelectionStatus_root")]//button[contains(text(),"确认选课")]`;
                                             const confirmSelectBut = await page.waitForXPath(confirmSelectButXpath);
+                                            confirmBut = confirmSelectBut
                                             // await confirmSelectBut.click();
                                         } else {
                                             console.log(`确认选课`);
                                             const confirmSelectButXpath = `//div[contains(@class,"SelectionStatus_root")]//button[contains(text(),"去确认")]`;
                                             const confirmSelectBut = await page.waitForXPath(confirmSelectButXpath);
-                                            await confirmSelectBut.click();
+                                            confirmBut = confirmSelectBut
+                                            // await confirmSelectBut.click();
                                         }
 
-                                        await waitamount(10000)
-                                        await browser.close();
+                                        await Promise.all([
+                                            page.waitForResponse(
+                                                async response => {
+                                                    if (response.url().includes('studentPlanCourse/saveCourses')) {
+                                                        return await response.text();
+                                                    } else {
+                                                        return false
+                                                    }
+                                                }
+                                            ),
+                                            confirmBut.click()
+                                        ])
 
+                                        await waitamount()
+
+                                        return await enterYearStudy()
                                     }
 
 
@@ -516,13 +534,7 @@ try {
                                             })
 
                                             await waitamount(300)
-
-
-
-                                            // breakTemp = true
                                         }
-
-                                        // if (breakTemp) break
                                     }
 
                                     console.log(`！！！当前进度状态！！！【${progressState}】！！！`);
@@ -683,7 +695,7 @@ try {
                                             return
                                         }
                                         reEnterCount++
-                                        await enterYearStudy()
+                                        return await enterYearStudy()
                                     }
                                 } else {
                                     //发生错误
