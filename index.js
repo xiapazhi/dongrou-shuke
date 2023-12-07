@@ -31,7 +31,7 @@ try {
             const domain = 'http://training.zjkj.edufe.cn';
 
             const browser = await puppeteer.launch({
-                headless: false,
+                // headless: false,
                 defaultViewport: {
                     width: 1280,
                     height: 720,
@@ -237,7 +237,7 @@ try {
                             const videoPlayBut = document.querySelector('.pv-icon-btn-play')
                             videoPlayBut.click()
                         }
-                        await waitamount(3000)
+                        // await waitamount(3000)
                         document.querySelector('.pv-video').playbackRate = 2;
                     })
 
@@ -354,10 +354,6 @@ try {
 
                     for (let yearPlan of yearPlanList) {
 
-                        if (yearPlan.execYear != 2018) {
-                            continue
-                        }
-
                         console.log(`遍历年度课程 ${yearPlan.execYear} 状态 ${yearPlan.planState}`);
                         if (yearPlan.planState == 2) {
                             // 已完成
@@ -370,7 +366,7 @@ try {
                             const reEnterCount = 0
                             const maxReEnterCount = 3
                             const enterYearStudy = async () => {
-                                const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId
+                                const goYearStudyUrl = domain + '/plan/courses/' + yearPlan.planId + '?' + Math.random()
                                 console.log(`年度课程跳转 ${yearPlan.execYear} ${goYearStudyUrl}`);
 
                                 let [studyPlanListRes, progressStateRes] = await Promise.all([
